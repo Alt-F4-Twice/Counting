@@ -73,7 +73,6 @@ setInterval(() => {
     remainingUsers.forEach((user, index) => {
       user.position = index + 1;
     });
-  }
 }, 10000); // runs every 10 seconds
 
     // Recalculate positions for all remaining users
