@@ -47,20 +47,23 @@ async function isVPN(ip) {
 setInterval(() => {
   const now = Date.now();
 
-  // Delete all unregistered users older than 2 minutes
-  for (let [key, user] of users) {
-    if (!user.registered && now - user.createdAt > 120000) {
-      users.delete(key);
-      console.log("Deleted expired user:", user.id);
-    }
-  }
+  // Find the first unregistered user who expired
+  const expiredUserEntry = [...users.entries()].find(
+    ([key, user]) => !user.registered && now - user.createdAt > 120000
+  );
 
-  // Recalculate positions for all remaining users, in order
-  const sortedUsers = [...users.values()].sort((a, b) => a.position - b.position);
-  sortedUsers.forEach((user, index) => {
-    user.position = index + 1; // new positions start at 1
-  });
-}, 10000);
+  if (expiredUserEntry) {
+    const [key, user] = expiredUserEntry;
+    users.delete(key);
+    console.log("Deleted expired user:", user.id);
+
+    // Recalculate positions for remaining users
+    const sortedUsers = [...users.values()].sort((a, b) => a.position - b.position);
+    sortedUsers.forEach((user, index) => {
+      user.position = index + 1; // positions start at 1
+    });
+  }
+}, 10000); // runs every 10 seconds
 
 // Function to determine user name
 function getName(req) {
