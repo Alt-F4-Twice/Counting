@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,16 @@ function generateId() {
     id += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return id;
+}
+
+//Generate 20-character Key
+function generateKey(length = 20) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let key = "";
+  for (let i = 0; i < length; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return key;
 }
 
 // Ensure unique ID
@@ -106,16 +117,19 @@ app.get("/counter", async (req, res) => {
   // Determine the name dynamically
   const name = getName(req);
 
-  const user = {
-    id,
-    name, // dynamic name
-    position,
-    joined: new Date().toISOString(),
-    device: req.headers["user-agent"],
-    ip,
-    registered: false,
-    createdAt: Date.now()
-  };
+const deleteKey = generateKey();
+
+const user = {
+  id,
+  name,
+  deleteKey, // 👈 add this
+  position,
+  joined: new Date().toISOString(),
+  device: req.headers["user-agent"],
+  ip,
+  registered: false,
+  createdAt: Date.now()
+};
 
   users.set(id, user);
 
