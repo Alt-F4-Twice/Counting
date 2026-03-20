@@ -109,36 +109,35 @@ app.get("/counter", async (req, res) => {
 
   const id = getUniqueId();
   const position = positionCounter++;
-
-  // Determine the name dynamically
   const name = getName(req);
+  const deleteKey = generateKey();
 
-const deleteKey = generateKey();
-
-const user = {
-  id,
-  name,
-  deleteKey, // 👈 add this
-  position,
-  joined: new Date().toISOString(),
-  device: req.headers["user-agent"],
-  ip,
-  registered: false,
-  createdAt: Date.now()
-};
+  const user = {
+    id,
+    name,
+    deleteKey,
+    position,
+    joined: new Date().toISOString(),
+    device: req.headers["user-agent"],
+    ip,
+    registered: false,
+    createdAt: Date.now()
+  };
 
   users.set(id, user);
 
-res.setHeader("Content-Type", "application/json");
-res.send(JSON.stringify({
-  id: user.id,
-  name: user.name,
-  position: user.position,
-  deleteKey: user.deleteKey,
-  joined: user.joined,
-  device: user.device,
-  ip: user.ip
-}, null, 2));
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    deleteKey: user.deleteKey,
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
+
+});
 
 // REGISTER ROUTE
 app.get("/register/:id", (req, res) => {
