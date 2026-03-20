@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 let users = new Map();
 let positionCounter = 1;
 
-// Generate 14-character ID
+// Generate 16-character ID
 function generateId() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let id = "";
@@ -145,6 +145,27 @@ app.get("/register/:id", (req, res) => {
       position: user.position
     }
   });
+});
+
+//user/:id route
+
+app.get("/user/:id", (req, res) => {
+  const { id } = req.params;
+  const user = users.get(id);
+
+  if (!user) {
+    return res.status(404).json({ error: "Invalid or expired ID" });
+  }
+
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
 });
 
 // ROOT
