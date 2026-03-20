@@ -54,6 +54,24 @@ setInterval(() => {
   }
 }, 10000);
 
+// Function to determine user name
+function getName(req) {
+  const userAgent = req.headers["user-agent"] || "";
+
+  // Detect Apple Shortcut
+  if (userAgent.includes("Shortcuts")) {
+    return "ShortcutUser";
+  }
+
+  // If user provides a name in the URL query
+  if (req.query.name) {
+    return req.query.name;
+  }
+
+  // Default name
+  return "User";
+}
+
 // COUNTER ROUTE
 app.get("/counter", async (req, res) => {
   const ip = getIP(req);
@@ -67,9 +85,12 @@ app.get("/counter", async (req, res) => {
   const id = getUniqueId();
   const position = positionCounter++;
 
+  // Determine the name dynamically
+  const name = getName(req);
+
   const user = {
     id,
-    name: "User",
+    name, // dynamic name
     position,
     joined: new Date().toISOString(),
     device: req.headers["user-agent"],
