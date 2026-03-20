@@ -133,16 +133,16 @@ const user = {
 
   users.set(id, user);
 
-  res.setHeader("Content-Type", "application/json");
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip
-  }, null, 2));
-});
+res.setHeader("Content-Type", "application/json");
+res.send(JSON.stringify({
+  id: user.id,
+  name: user.name,
+  position: user.position,
+  deleteKey: user.deleteKey,
+  joined: user.joined,
+  device: user.device,
+  ip: user.ip
+}, null, 2));
 
 // REGISTER ROUTE
 app.get("/register/:id", (req, res) => {
@@ -190,6 +190,38 @@ app.get("/user/:id", (req, res) => {
     joined: user.joined,
     device: user.device,
     ip: user.ip
+  }, null, 2));
+});
+
+  // DELETE ROUTE
+app.get("/delete/:id", (req, res) => {
+  const { id } = req.params;
+  const key = req.query.key;
+
+  const user = users.get(id);
+
+  if (!user) {
+    return res.send(JSON.stringify({ error: "User not found" }, null, 2));
+  }
+
+  // Check user key OR admin key
+  if (key !== user.deleteKey && key !== ADMIN_KEY) {
+    return res.send(JSON.stringify({ error: "Invalid key" }, null, 2));
+  }
+
+  // Delete user
+  users.delete(id);
+
+  // Recalculate positions
+  const remainingUsers = [...users.values()].sort((a, b) => a.position - b.position);
+  remainingUsers.forEach((u, index) => {
+    u.position = index + 1;
+  });
+
+  res.send(JSON.stringify({
+    success: true,
+    message: "User deleted",
+    deletedId: id
   }, null, 2));
 });
 
