@@ -193,7 +193,8 @@ app.get("/user/:id", (req, res) => {
     name: user.name,
     position: user.position,
     registered: user.registered ? "yes" : "no",
-    deleteKey: user.deleteKey, // show delete key here only
+    deleteKey: user.deleteKey,
+    viewKey: user.viewKey,
     joined: user.joined,
     device: user.device,
     ip: user.ip
