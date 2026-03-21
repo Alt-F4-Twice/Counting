@@ -57,20 +57,29 @@ async function isVPN(ip) {
 // Recalculate positions and cleanup every 10 seconds
 setInterval(() => {
   const now = Date.now();
+  let deleted = false;
 
-  // Remove expired unregistered users
+  // Delete expired unregistered users
   for (const [id, user] of users) {
     if (!user.registered && now - user.createdAt > 120000) {
       users.delete(id);
+      deleted = true;
       console.log(`Deleted expired user: ${id}`);
     }
   }
 
-  // Recalculate positions for all remaining users by joined time
-  const sortedUsers = [...users.values()].sort((a, b) => a.joined.localeCompare(b.joined));
-  sortedUsers.forEach((user, index) => {
-    user.position = index + 1;
-  });
+  // Only recalc positions if any user was deleted
+  if (deleted) {
+    const sortedUsers = [...users.values()]
+      .sort((a, b) => a.position - b.position); // preserve current order
+
+    sortedUsers.forEach((user, index) => {
+      user.position = index + 1; // shift everyone up
+    });
+
+    // Update positionCounter to max position + 1
+    positionCounter = sortedUsers.length + 1;
+  }
 
 }, 10000); // runs every 10 seconds
 
@@ -101,20 +110,31 @@ app.get("/counter", async (req, res) => {
   if (vpn) return res.status(403).json({ error: "VPN/Proxy detected" });
 
   // Check if a user with this IP exists
-  let user = [...users.values()].find(u => u.ip === ip && !u.registered);
+ let user = [...users.values()].find(u => u.ip === ip && !u.registered);
 
-  if (!user) {
-    const id = getUniqueId();
-    const position = positionCounter++;
-    const name = getName(req);
-    const deleteKey = generateKey();
+if (!user) {
+  const id = getUniqueId();
+  const position = positionCounter++; // only increment here
+  const name = getName(req);
+  const deleteKey = generateKey();
 
-    user = { id, name, deleteKey, position, joined: new Date().toISOString(), device: req.headers["user-agent"], ip, registered: false, createdAt: Date.now() };
-    users.set(id, user);
-  } else {
-    // Refresh their timer
-    user.createdAt = Date.now();
-  }
+  user = {
+    id,
+    name,
+    deleteKey,
+    position,
+    joined: new Date().toISOString(),
+    device: req.headers["user-agent"],
+    ip,
+    registered: false,
+    createdAt: Date.now()
+  };
+
+  users.set(id, user);
+} else {
+  // just refresh timer, DO NOT change position
+  user.createdAt = Date.now();
+}
 
   // Return user info with live position
   res.setHeader("Content-Type", "application/json");
