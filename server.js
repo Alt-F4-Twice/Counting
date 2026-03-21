@@ -175,6 +175,29 @@ app.get("/user/:id", (req, res) => {
   }, null, 2));
 });
 
+  // REGISTER ROUTE
+app.get("/register/:id", (req, res) => {
+  const { id } = req.params;
+
+  const user = users.get(id);
+  if (!user) {
+    return res.status(404).json({ error: "Invalid or expired ID" });
+  }
+
+  user.registered = true;
+
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    registered: "yes",
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
+});
+
   // DELETE ROUTE
 app.get("/delete/:id", (req, res) => {
   const { id } = req.params;
