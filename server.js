@@ -109,12 +109,12 @@ app.get("/counter", async (req, res) => {
   const vpn = await isVPN(ip);
   if (vpn) return res.status(403).json({ error: "VPN/Proxy detected" });
 
-  // Check if a user with this IP exists
-const id = getUniqueId();
-const position = positionCounter++;
-const name = getName(req);
-const deleteKey = generateKey();
-const viewKey = generateKey(16);
+  // Generate new user
+  const id = getUniqueId();
+  const position = positionCounter++;
+  const name = getName(req);
+  const viewKey = generateKey(16);
+  const deleteKey = generateKey();
   
 const user = {
   id,
@@ -138,37 +138,42 @@ users.set(id, user);
     name: user.name,
     position: user.position,
     registered: "no",
-    deleteKey: user.deleteKey,
+    viewKey: user.viewKey,   // <-- include viewKey here
     joined: user.joined,
     device: user.device,
     ip: user.ip
   }, null, 2));
 });
 
-// REGISTER ROUTE
-app.get("/register/:id", (req, res) => {
+// USER ROUTE (requires viewKey)
+app.get("/user/:id", (req, res) => {
   const { id } = req.params;
+  const key = req.query.key; // e.g., /user/Vjxosb4n9GflbUlg?key=6732389128
 
   const user = users.get(id);
-
   if (!user) {
-    res.setHeader("Content-Type", "application/json");
-    return res.send(JSON.stringify({ error: "Invalid or expired ID" }, null, 2));
+    return res.status(404).json({ error: "Invalid or expired ID" });
   }
 
-  user.registered = true;
+  // Only allow access if the correct viewKey or admin key is provided
+  if (key !== user.viewKey && key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Invalid key" });
+  }
 
-res.setHeader("Content-Type", "application/json");
-res.send(JSON.stringify({
-  id: user.id,
-  name: user.name,
-  position: user.position,
-  registered: "yes",
-  joined: user.joined,
-  device: user.device,
-  ip: user.ip
-}, null, 2));
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Refresh", "5"); // auto-refresh every 5s
 
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    registered: user.registered ? "yes" : "no",
+    viewKey: user.viewKey,     // <-- show viewKey in /user too
+    deleteKey: user.deleteKey, // <-- show deleteKey only here
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
 });
 
 //User/:ID ROUTE
