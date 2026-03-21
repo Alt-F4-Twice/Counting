@@ -179,6 +179,8 @@ app.get("/user/:id", (req, res) => {
 
   // Always return current position from the interval
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Refresh", "5"); // 👈 ADD THIS LINE
+
   res.send(JSON.stringify({
     id: user.id,
     name: user.name,
