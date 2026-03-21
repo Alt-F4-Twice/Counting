@@ -173,8 +173,10 @@ res.send(JSON.stringify({
 
 //User/:ID ROUTE
 app.get("/user/:id", (req, res) => {
-  const { id } = req.params;
-  const key = req.query.key; // <- the key passed in query
+ const key = req.query.key;
+if (key !== user.viewKey && key !== ADMIN_KEY) {
+  return res.status(403).json({ error: "Invalid key" });
+}
 
   const user = users.get(id);
   if (!user) {
