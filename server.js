@@ -145,37 +145,6 @@ users.set(id, user);
   }, null, 2));
 });
 
-// USER ROUTE (requires viewKey)
-app.get("/user/:id", (req, res) => {
-  const { id } = req.params;
-  const key = req.query.key; // e.g., /user/Vjxosb4n9GflbUlg?key=6732389128
-
-  const user = users.get(id);
-  if (!user) {
-    return res.status(404).json({ error: "Invalid or expired ID" });
-  }
-
-  // Only allow access if the correct viewKey or admin key is provided
-  if (key !== user.viewKey && key !== ADMIN_KEY) {
-    return res.status(403).json({ error: "Invalid key" });
-  }
-
-  res.setHeader("Content-Type", "application/json");
-  res.setHeader("Refresh", "5"); // auto-refresh every 5s
-
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: user.registered ? "yes" : "no",
-    viewKey: user.viewKey,     // <-- show viewKey in /user too
-    deleteKey: user.deleteKey, // <-- show deleteKey only here
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip
-  }, null, 2));
-});
-
 //User/:ID ROUTE
 app.get("/user/:id", (req, res) => {
   const { id } = req.params;       // <-- get the id from route
