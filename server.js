@@ -110,31 +110,24 @@ app.get("/counter", async (req, res) => {
   if (vpn) return res.status(403).json({ error: "VPN/Proxy detected" });
 
   // Check if a user with this IP exists
- let user = [...users.values()].find(u => u.ip === ip && !u.registered);
+const id = getUniqueId();
+const position = positionCounter++;
+const name = getName(req);
+const deleteKey = generateKey();
 
-if (!user) {
-  const id = getUniqueId();
-  const position = positionCounter++; // only increment here
-  const name = getName(req);
-  const deleteKey = generateKey();
+const user = {
+  id,
+  name,
+  deleteKey,
+  position,
+  joined: new Date().toISOString(),
+  device: req.headers["user-agent"],
+  ip,
+  registered: false,
+  createdAt: Date.now()
+};
 
-  user = {
-    id,
-    name,
-    deleteKey,
-    position,
-    joined: new Date().toISOString(),
-    device: req.headers["user-agent"],
-    ip,
-    registered: false,
-    createdAt: Date.now()
-  };
-
-  users.set(id, user);
-} else {
-  // just refresh timer, DO NOT change position
-  user.createdAt = Date.now();
-}
+users.set(id, user);
 
   // Return user info with live position
   res.setHeader("Content-Type", "application/json");
