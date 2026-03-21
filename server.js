@@ -114,7 +114,8 @@ const id = getUniqueId();
 const position = positionCounter++;
 const name = getName(req);
 const deleteKey = generateKey();
-
+const viewKey = generateKey(16);
+  
 const user = {
   id,
   name,
@@ -162,7 +163,6 @@ res.send(JSON.stringify({
   name: user.name,
   position: user.position,
   registered: "yes",
-  deleteKey: user.deleteKey,
   joined: user.joined,
   device: user.device,
   ip: user.ip
@@ -173,14 +173,19 @@ res.send(JSON.stringify({
 //User/:ID ROUTE
 app.get("/user/:id", (req, res) => {
   const { id } = req.params;
-  const user = users.get(id);
+  const key = req.query.key; // <- the key passed in query
 
+  const user = users.get(id);
   if (!user) {
     return res.status(404).json({ error: "Invalid or expired ID" });
   }
 
-  // Always return current position from the interval
- res.setHeader("Content-Type", "application/json");
+  // Must have correct viewKey OR admin key
+  if (key !== user.viewKey && key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Invalid key" });
+  }
+
+  res.setHeader("Content-Type", "application/json");
   res.setHeader("Refresh", "5");
 
   res.send(JSON.stringify({
@@ -188,11 +193,11 @@ app.get("/user/:id", (req, res) => {
     name: user.name,
     position: user.position,
     registered: user.registered ? "yes" : "no",
+    deleteKey: user.deleteKey, // show delete key here only
     joined: user.joined,
     device: user.device,
     ip: user.ip
   }, null, 2));
-
 });
 
   // DELETE ROUTE
