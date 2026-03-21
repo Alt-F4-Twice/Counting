@@ -173,12 +173,10 @@ res.send(JSON.stringify({
 
 //User/:ID ROUTE
 app.get("/user/:id", (req, res) => {
- const key = req.query.key;
-if (key !== user.viewKey && key !== ADMIN_KEY) {
-  return res.status(403).json({ error: "Invalid key" });
-}
+  const { id } = req.params;       // <-- get the id from route
+  const key = req.query.key;       // <-- get the key from query
 
-  const user = users.get(id);
+  const user = users.get(id);      // <-- now get the user after id is defined
   if (!user) {
     return res.status(404).json({ error: "Invalid or expired ID" });
   }
@@ -187,7 +185,7 @@ if (key !== user.viewKey && key !== ADMIN_KEY) {
   if (key !== user.viewKey && key !== ADMIN_KEY) {
     return res.status(403).json({ error: "Invalid key" });
   }
-
+  
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Refresh", "5");
 
