@@ -179,18 +179,20 @@ app.get("/user/:id", (req, res) => {
   }
 
   // Always return current position from the interval
-  res.setHeader("Content-Type", "application/json");
-  res.setHeader("Refresh", "5"); // 👈 ADD THIS LINE
+ res.setHeader("Content-Type", "application/json");
+  res.setHeader("Refresh", "5");
 
- res.send(JSON.stringify({
-  id: user.id,
-  name: user.name,
-  position: user.position,
-  registered: user.registered ? "yes" : "no", // 👈 ADD THIS
-  joined: user.joined,
-  device: user.device,
-  ip: user.ip
-}, null, 2));
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    registered: user.registered ? "yes" : "no",
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
+
+});
 
   // DELETE ROUTE
 app.get("/delete/:id", (req, res) => {
