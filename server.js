@@ -119,8 +119,9 @@ const viewKey = generateKey(16);
 const user = {
   id,
   name,
-  deleteKey,
   position,
+  viewKey,
+  deleteKey,
   joined: new Date().toISOString(),
   device: req.headers["user-agent"],
   ip,
