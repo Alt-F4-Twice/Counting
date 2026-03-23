@@ -41,16 +41,59 @@ function getUniqueId() {
 
 // Get real IP
 function getIP(req) {
-  return req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  let ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+  if (!ip) return null;
+
+  // Handle multiple IPs (proxies)
+  if (ip.includes(",")) {
+    ip = ip.split(",")[0].trim();
+  }
+
+  // Fix localhost
+  if (ip === "::1") return "127.0.0.1";
+
+  // Fix IPv6 format
+  if (ip.startsWith("::ffff:")) {
+    ip = ip.replace("::ffff:", "");
+  }
+
+  return ip;
 }
 
 // VPN / Proxy check (basic)
-async function isVPN(ip) {
+async function checkIP(ip) {
   try {
-    const res = await axios.get(`http://ip-api.com/json/${ip}?fields=proxy,hosting`);
-    return res.data.proxy || res.data.hosting;
+    const res = await axios.get(
+      `http://ip-api.com/json/${ip}?fields=proxy,hosting,org`
+    );
+
+    const data = res.data;
+    let risk = 0;
+
+    if (data.proxy === true) risk += 40;
+    if (data.hosting === true) risk += 30;
+
+    // Detect cloud providers (major VPN signal)
+    if (data.org) {
+      const org = data.org.toLowerCase();
+
+      if (
+        org.includes("amazon") ||
+        org.includes("google") ||
+        org.includes("microsoft") ||
+        org.includes("digitalocean") ||
+        org.includes("linode") ||
+        org.includes("ovh")
+      ) {
+        risk += 30;
+      }
+    }
+
+    return { risk, data };
+
   } catch {
-    return false;
+    return { risk: 0, data: {} };
   }
 }
 
@@ -102,12 +145,18 @@ function getName(req) {
 }
 
 // COUNTER ROUTE
-app.get("/counter", async (req, res) => {
-  const ip = getIP(req);
+const ip = getIP(req);
 
-  // Block VPN
-  const vpn = await isVPN(ip);
-  if (vpn) return res.status(403).json({ error: "VPN/Proxy detected" });
+if (!ip) {
+  return res.status(400).json({ error: "Could not determine IP" });
+}
+
+const { risk } = await checkIP(ip);
+
+// Block high-risk users
+if (risk >= 50) {
+  return res.status(403).json({ error: "VPN/Proxy detected" });
+}
 
   // Generate new user
   const id = getUniqueId();
