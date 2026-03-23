@@ -165,8 +165,9 @@ app.get("/counter", async (req, res) => {
   }
 
   // Prevent duplicate IP users
-  const existingUser = [...users.values()].find(u => u.ip === ip);
+  let existingUser = [...users.values()].find(u => u.ip === ip);
   if (existingUser) {
+    const timeRemaining = Math.max(0, Math.floor((existingUser.createdAt + 120000 - Date.now()) / 1000));
     res.setHeader("Content-Type", "application/json");
     return res.send(JSON.stringify({
       id: existingUser.id,
@@ -177,7 +178,7 @@ app.get("/counter", async (req, res) => {
       joined: existingUser.joined,
       device: existingUser.device,
       ip: existingUser.ip,
-      expiresAt: existingUser.expiresAt // countdown time for front-end
+      timeRemaining
     }, null, 2));
   }
 
@@ -188,7 +189,7 @@ app.get("/counter", async (req, res) => {
   const viewKey = generateKey(16);
   const deleteKey = generateKey();
 
-  const user = {
+ const user = {
     id,
     name,
     position,
@@ -199,15 +200,14 @@ app.get("/counter", async (req, res) => {
     ip,
     risk,
     registered: false,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 120000 // 2 minutes from now
+    createdAt: Date.now()
   };
 
   users.set(id, user);
 
-  const timeRemaining = getTimeRemaining(user);
+  const timeRemaining = 120; // 2 minutes in seconds for a new user
 
-   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Type", "application/json");
   res.send(JSON.stringify({
     id: user.id,
     name: user.name,
@@ -217,7 +217,7 @@ app.get("/counter", async (req, res) => {
     joined: user.joined,
     device: user.device,
     ip: user.ip,
-    expiresAt: user.expiresAt // send countdown to front-end
+    timeRemaining
   }, null, 2));
 });
 
