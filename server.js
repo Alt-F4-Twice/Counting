@@ -148,61 +148,31 @@ function getName(req) {
 
 // COUNTER ROUTE
 // COUNTER ROUTE
-const cookieParser = require("cookie-parser");
-app.use(cookieParser());
-
 app.get("/counter", async (req, res) => {
   const ip = getIP(req);
+  if (!ip) return res.status(400).json({ error: "Could not determine IP" });
 
-  if (!ip) {
-    return res.status(400).json({ error: "Could not determine IP" });
-  }
-
-  // 1️⃣ Check cookie first
   let userToken = req.cookies?.userToken;
   if (userToken && users.has(userToken)) {
     const existingUser = users.get(userToken);
-    // ✅ Set cookie again (permanent)
-    res.cookie("userToken", existingUser.id); // no maxAge → lasts until user clears it
-    return res.json({
-      id: existingUser.id,
-      name: existingUser.name,
-      position: existingUser.position,
-      registered: existingUser.registered ? "yes" : "no",
-      viewKey: existingUser.viewKey,
-      joined: existingUser.joined,
-      device: existingUser.device,
-      ip: existingUser.ip
-    });
+    res.cookie("userToken", existingUser.id); // permanent cookie
+    res.setHeader("Content-Type", "application/json");
+    return res.send(JSON.stringify(existingUser, null, 2));
   }
 
-  // 2️⃣ VPN/proxy check
   const { risk } = await checkIP(ip);
-  if (risk >= 50) {
-    return res.status(403).json({ error: "VPN/Proxy detected" });
-  }
+  if (risk >= 50) return res.status(403).json({ error: "VPN/Proxy detected" });
 
-  // 3️⃣ Check duplicate IP (ignore /test users)
   const existingUser = [...users.values()]
     .filter(u => u.ip === ip && u.ip !== "TEST")
     .sort((a, b) => a.createdAt - b.createdAt)[0];
 
   if (existingUser) {
-    // ✅ Set permanent cookie
     res.cookie("userToken", existingUser.id);
-    return res.json({
-      id: existingUser.id,
-      name: existingUser.name,
-      position: existingUser.position,
-      registered: existingUser.registered ? "yes" : "no",
-      viewKey: existingUser.viewKey,
-      joined: existingUser.joined,
-      device: existingUser.device,
-      ip: existingUser.ip
-    });
+    res.setHeader("Content-Type", "application/json");
+    return res.send(JSON.stringify(existingUser, null, 2));
   }
 
-  // 4️⃣ Create new user
   const id = getUniqueId();
   const position = positionCounter++;
   const name = getName(req);
@@ -224,35 +194,18 @@ app.get("/counter", async (req, res) => {
   };
 
   users.set(id, user);
-
-  // ✅ Set permanent cookie
   res.cookie("userToken", id);
-
-res.setHeader("Content-Type", "application/json");
-res.send(JSON.stringify({...}, null, 2));
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: "no",
-    viewKey: user.viewKey,
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip
-  }, null, 2));
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify(user, null, 2));
 });
 
-// TEST ROUTE (bypasses VPN + duplicate IP)
+// TEST ROUTE
 app.get("/test", (req, res) => {
   const key = req.query.key;
+  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
 
-  // Require admin key for safety
-  if (key !== ADMIN_KEY) {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  // Generate new user WITHOUT checks
   const id = getUniqueId();
-  const position = positionCounter++; // SAME counter
+  const position = positionCounter++;
   const name = getName(req);
   const viewKey = generateKey(16);
   const deleteKey = generateKey();
@@ -265,169 +218,56 @@ app.get("/test", (req, res) => {
     deleteKey,
     joined: new Date().toISOString(),
     device: req.headers["user-agent"],
-    ip: "TEST", // mark it so you know it's fake
+    ip: "TEST",
     risk: 0,
     registered: false,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    test: true
   };
 
   users.set(id, user);
-
   res.setHeader("Content-Type", "application/json");
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: "no",
-    viewKey: user.viewKey,
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip,
-    test: true
-  }, null, 2));
+  res.send(JSON.stringify(user, null, 2));
 });
 
-// LEADERBOARD ROUTE (admin only, auto-refresh)
-app.get("/leaderboard", (req, res) => {
-  const key = req.query.key;
-  
-  if (key !== ADMIN_KEY) {
-    return res.status(403).send("Unauthorized");
-  }
-
-  // Sort users by position
-  const sortedUsers = [...users.values()].sort((a, b) => a.position - b.position);
-
-  // Auto-refresh interval in seconds
-  const refreshInterval = 5; // refresh every 5 seconds
-
-  // Build HTML table
-  let tableRows = "";
-  sortedUsers.forEach(u => {
-    tableRows += `<tr>
-      <td>${u.position}</td>
-      <td>${u.id}${u.ip === "TEST" ? " (TEST)" : ""}</td>
-      <td>${u.registered ? "yes" : "no"}</td>
-      <td>${u.ip}</td>
-    </tr>`;
-  });
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Leaderboard</title>
-        <meta http-equiv="refresh" content="${refreshInterval}">
-        <style>
-          body { font-family: Arial, sans-serif; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-          th { background-color: #f0f0f0; }
-        </style>
-      </head>
-      <body>
-        <h1>Leaderboard</h1>
-        <table>
-          <tr>
-            <th>Position</th>
-            <th>ID</th>
-            <th>Registered</th>
-            <th>IP</th>
-          </tr>
-          ${tableRows}
-        </table>
-      </body>
-    </html>
-  `;
-
-  res.setHeader("Content-Type", "text/html");
-  res.send(html);
-});
-
-//User/:ID ROUTE
+// USER/:ID ROUTE
 app.get("/user/:id", (req, res) => {
-  const { id } = req.params;       // <-- get the id from route
-  const key = req.query.key;       // <-- get the key from query
+  const { id } = req.params;
+  const key = req.query.key;
+  const user = users.get(id);
+  if (!user) return res.status(404).json({ error: "Invalid or expired ID" });
+  if (key !== user.viewKey && key !== ADMIN_KEY) return res.status(403).json({ error: "Invalid key" });
 
-  const user = users.get(id);      // <-- now get the user after id is defined
-  if (!user) {
-    return res.status(404).json({ error: "Invalid or expired ID" });
-  }
-
-  // Must have correct viewKey OR admin key
-  if (key !== user.viewKey && key !== ADMIN_KEY) {
-    return res.status(403).json({ error: "Invalid key" });
-  }
-  
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Refresh", "5");
-
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: user.registered ? "yes" : "no",
-    deleteKey: user.deleteKey,
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip
-  }, null, 2));
+  res.send(JSON.stringify(user, null, 2));
 });
 
-  // REGISTER ROUTE
+// REGISTER ROUTE
 app.get("/register/:id", (req, res) => {
   const { id } = req.params;
-
   const user = users.get(id);
-  if (!user) {
-    return res.status(404).json({ error: "Invalid or expired ID" });
-  }
+  if (!user) return res.status(404).json({ error: "Invalid or expired ID" });
 
   user.registered = true;
-
   res.setHeader("Content-Type", "application/json");
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: "yes",
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip
-  }, null, 2));
+  res.send(JSON.stringify(user, null, 2));
 });
 
-  // DELETE ROUTE
+// DELETE ROUTE
 app.get("/delete/:id", (req, res) => {
   const { id } = req.params;
   const key = req.query.key;
-
   const user = users.get(id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  if (key !== user.deleteKey && key !== ADMIN_KEY) return res.status(403).json({ error: "Invalid key" });
 
-  if (!user) {
-    return res.send(JSON.stringify({ error: "User not found" }, null, 2));
-  }
-
-  // Check user key OR admin key
-  if (key !== user.deleteKey && key !== ADMIN_KEY) {
-    return res.send(JSON.stringify({ error: "Invalid key" }, null, 2));
-  }
-
-  // Delete user
   users.delete(id);
-
-  // Recalculate positions
   const remainingUsers = [...users.values()].sort((a, b) => a.position - b.position);
-  remainingUsers.forEach((u, index) => {
-    u.position = index + 1;
-  });
+  remainingUsers.forEach((u, index) => { u.position = index + 1; });
 
-  res.send(JSON.stringify({
-    success: true,
-    message: "User deleted",
-    deletedId: id
-  }, null, 2));
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({ success: true, deletedId: id, users: remainingUsers }, null, 2));
 });
 
 // ROOT
