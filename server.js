@@ -156,71 +156,64 @@ function getTimeRemaining(user) {
 app.get("/counter", async (req, res) => {
   const ip = getIP(req);
 
-  if (!ip) {
-    return res.status(400).json({ error: "Could not determine IP" });
-  }
+  if (!ip) return res.send("Could not determine IP");
 
-  // Check VPN/proxy risk
   const { risk } = await checkIP(ip);
-  if (risk >= 50) {
-    return res.status(403).json({ error: "VPN/Proxy detected" });
+  if (risk >= 50) return res.send("VPN/Proxy detected");
+
+  let user = [...users.values()].find(u => u.ip === ip);
+
+  // Create user if not exists
+  if (!user) {
+    const id = getUniqueId();
+    const position = positionCounter++;
+    const name = getName(req);
+    const viewKey = generateKey(16);
+    const deleteKey = generateKey();
+
+    user = {
+      id,
+      name,
+      position,
+      viewKey,
+      deleteKey,
+      joined: new Date().toISOString(),
+      device: req.headers["user-agent"],
+      ip,
+      risk,
+      registered: false,
+      createdAt: Date.now()
+    };
+
+    users.set(id, user);
   }
 
-  // Prevent duplicate IP users
-  let existingUser = [...users.values()].find(u => u.ip === ip);
-  if (existingUser) {
-    const timeRemaining = Math.max(0, Math.floor((existingUser.createdAt + 120000 - Date.now()) / 1000));
-    res.setHeader("Content-Type", "application/json");
-    return res.send(JSON.stringify({
-      id: existingUser.id,
-      name: existingUser.name,
-      position: existingUser.position,
-      registered: existingUser.registered ? "yes" : "no",
-      viewKey: existingUser.viewKey,
-      joined: existingUser.joined,
-      device: existingUser.device,
-      ip: existingUser.ip,
-      timeRemaining
-    }, null, 2));
-  }
+  res.send(`
+  <html>
+  <body style="font-family: Arial; text-align:center; margin-top:50px;">
+  
+  <h1>Position: ${user.position}</h1>
+  <h2 id="timer">Loading...</h2>
 
-  // Generate new user
-  const id = getUniqueId();
-  const position = positionCounter++;
-  const name = getName(req);
-  const viewKey = generateKey(16);
-  const deleteKey = generateKey();
+  <script>
+    let timeRemaining = ${getTimeRemaining(user)};
 
- const user = {
-    id,
-    name,
-    position,
-    viewKey,
-    deleteKey,
-    joined: new Date().toISOString(),
-    device: req.headers["user-agent"],
-    ip,
-    risk,
-    registered: false,
-    createdAt: Date.now()
-  };
+    function updateTimer() {
+      if (timeRemaining > 0) {
+        document.getElementById("timer").innerText = "Time remaining: " + timeRemaining;
+        timeRemaining--;
+      } else {
+        document.getElementById("timer").innerText = "Expired";
+      }
+    }
 
-  users.set(id, user);
+    updateTimer();
+    setInterval(updateTimer, 1000);
+  </script>
 
-  const timeRemaining = 120; // 2 minutes in seconds for a new user
-
-  res.setHeader("Content-Type", "application/json");
-  res.send(JSON.stringify({
-    id: user.id,
-    name: user.name,
-    position: user.position,
-    registered: "no",
-    viewKey: user.viewKey,
-    joined: user.joined,
-    device: user.device,
-    ip: user.ip,
-    timeRemaining: getTimeRemaining(user)
-  }, null, 2));
+  </body>
+  </html>
+  `);
 });
 
 //User/:ID ROUTE
