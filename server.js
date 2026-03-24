@@ -162,8 +162,11 @@ app.get("/counter", async (req, res) => {
   }
 
   // Prevent duplicate IP users
-  const existingUser = [...users.values()].find(u => u.ip === ip);
- if (existingUser) {
+ const existingUser = [...users.values()]
+  .filter(u => u.ip === ip)
+  .sort((a, b) => a.createdAt - b.createdAt)[0];
+
+  if (existingUser) {
   res.setHeader("Content-Type", "application/json");
   return res.send(JSON.stringify({
     id: existingUser.id,
