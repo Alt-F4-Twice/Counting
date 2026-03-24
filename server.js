@@ -213,6 +213,52 @@ app.get("/counter", async (req, res) => {
   }, null, 2));
 });
 
+// TEST ROUTE (bypasses VPN + duplicate IP)
+app.get("/test", (req, res) => {
+  const key = req.query.key;
+
+  // Require admin key for safety
+  if (key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  // Generate new user WITHOUT checks
+  const id = getUniqueId();
+  const position = positionCounter++; // SAME counter
+  const name = getName(req);
+  const viewKey = generateKey(16);
+  const deleteKey = generateKey();
+
+  const user = {
+    id,
+    name,
+    position,
+    viewKey,
+    deleteKey,
+    joined: new Date().toISOString(),
+    device: req.headers["user-agent"],
+    ip: "TEST", // mark it so you know it's fake
+    risk: 0,
+    registered: false,
+    createdAt: Date.now()
+  };
+
+  users.set(id, user);
+
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    registered: "no",
+    viewKey: user.viewKey,
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip,
+    test: true
+  }, null, 2));
+});
+
 //User/:ID ROUTE
 app.get("/user/:id", (req, res) => {
   const { id } = req.params;       // <-- get the id from route
