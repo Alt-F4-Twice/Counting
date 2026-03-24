@@ -306,7 +306,7 @@ app.get("/leaderboard", (req, res) => {
   sortedUsers.forEach(u => {
     tableRows += `<tr>
       <td>${u.position}</td>
-      <td>${u.id}</td>
+      <td>${u.id}${u.ip === "TEST" ? " (TEST)" : ""}</td>
       <td>${u.registered ? "yes" : "no"}</td>
       <td>${u.ip}</td>
     </tr>`;
