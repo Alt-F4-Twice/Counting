@@ -8,6 +8,8 @@ const ADMIN_KEY = process.env.ADMIN_KEY;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.static("public"));
+
 // In-memory storage (replace with DB for production)
 let users = new Map();
 let positionCounter = 1;
@@ -217,7 +219,7 @@ app.get("/counter", async (req, res) => {
     joined: user.joined,
     device: user.device,
     ip: user.ip,
-    timeRemaining
+    timeRemaining: getTimeRemaining(user)
   }, null, 2));
 });
 
