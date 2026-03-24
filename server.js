@@ -8,8 +8,6 @@ const ADMIN_KEY = process.env.ADMIN_KEY;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static("public"));
-
 // In-memory storage (replace with DB for production)
 let users = new Map();
 let positionCounter = 1;
@@ -134,86 +132,85 @@ setInterval(() => {
 function getName(req) {
   const userAgent = req.headers["user-agent"] || "";
 
+  // Detect Apple Shortcut
   if (userAgent.includes("Shortcuts")) {
     return "ShortcutUser";
   }
 
+  // If user provides a name in the URL query
   if (req.query.name) {
     return req.query.name;
   }
 
+  // Default name
   return "User";
-}
-
-// ✅ OUTSIDE the function (important)
-function getTimeRemaining(user) {
-  const expireTime = user.createdAt + 120000; // 2 minutes
-  const remaining = Math.max(0, expireTime - Date.now());
-  return Math.floor(remaining / 1000);
 }
 
 // COUNTER ROUTE
 app.get("/counter", async (req, res) => {
   const ip = getIP(req);
 
-  if (!ip) return res.send("Could not determine IP");
-
-  const { risk } = await checkIP(ip);
-  if (risk >= 50) return res.send("VPN/Proxy detected");
-
-  let user = [...users.values()].find(u => u.ip === ip);
-
-  // Create user if not exists
-  if (!user) {
-    const id = getUniqueId();
-    const position = positionCounter++;
-    const name = getName(req);
-    const viewKey = generateKey(16);
-    const deleteKey = generateKey();
-
-    user = {
-      id,
-      name,
-      position,
-      viewKey,
-      deleteKey,
-      joined: new Date().toISOString(),
-      device: req.headers["user-agent"],
-      ip,
-      risk,
-      registered: false,
-      createdAt: Date.now()
-    };
-
-    users.set(id, user);
+  if (!ip) {
+    return res.status(400).json({ error: "Could not determine IP" });
   }
 
-  res.send(`
-  <html>
-  <body style="font-family: Arial; text-align:center; margin-top:50px;">
-  
-  <h1>Position: ${user.position}</h1>
-  <h2 id="timer">Loading...</h2>
+  // This is now valid because the function is async
+  const { risk } = await checkIP(ip);
 
-  <script>
-    let timeRemaining = ${getTimeRemaining(user)};
+  if (risk >= 50) {
+    return res.status(403).json({ error: "VPN/Proxy detected" });
+  }
 
-    function updateTimer() {
-      if (timeRemaining > 0) {
-        document.getElementById("timer").innerText = "Time remaining: " + timeRemaining;
-        timeRemaining--;
-      } else {
-        document.getElementById("timer").innerText = "Expired";
-      }
-    }
+  // Prevent duplicate IP users
+  const existingUser = [...users.values()].find(u => u.ip === ip);
+ if (existingUser) {
+  res.setHeader("Content-Type", "application/json");
+  return res.send(JSON.stringify({
+    id: existingUser.id,
+    name: existingUser.name,
+    position: existingUser.position,
+    registered: existingUser.registered ? "yes" : "no",
+    viewKey: existingUser.viewKey,
+    joined: existingUser.joined,
+    device: existingUser.device,
+    ip: existingUser.ip
+  }, null, 2));
+}
 
-    updateTimer();
-    setInterval(updateTimer, 1000);
-  </script>
+  // Generate new user
+  const id = getUniqueId();
+  const position = positionCounter++;
+  const name = getName(req);
+  const viewKey = generateKey(16);
+  const deleteKey = generateKey();
 
-  </body>
-  </html>
-  `);
+  const user = {
+    id,
+    name,
+    position,
+    viewKey,
+    deleteKey,
+    joined: new Date().toISOString(),
+    device: req.headers["user-agent"],
+    ip,
+    risk,
+    registered: false,
+    createdAt: Date.now()
+  };
+
+  users.set(id, user);
+
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({
+    id: user.id,
+    name: user.name,
+    position: user.position,
+    registered: "no",
+    viewKey: user.viewKey,
+    joined: user.joined,
+    device: user.device,
+    ip: user.ip
+  }, null, 2));
 });
 
 //User/:ID ROUTE
