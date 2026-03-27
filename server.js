@@ -315,9 +315,20 @@ app.get("/register/:id", (req, res) => {
 app.get("/delete/:id", (req, res) => {
   const { id } = req.params;
   const key = req.query.key;
-  const user = users.get(id);
+  
+  //User check
+    const user = users.get(id);
   if (!user) return res.status(404).json({ error: "User not found" });
-  if (key !== user.deleteKey && key !== ADMIN_KEY) return res.status(403).json({ error: "Invalid key" });
+
+  // Require registration (except admin)
+  if (!user.registered && key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Must register before deleting" });
+  }
+
+  // Key check
+  if (key !== user.deleteKey && key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Invalid key" });
+  }
 
   users.delete(id);
   const remainingUsers = [...users.values()].sort((a, b) => a.position - b.position);
